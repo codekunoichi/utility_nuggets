@@ -73,11 +73,11 @@ while counterPages < amountOfPages:
                 else:
                     commitsAuthors[commit['author']['raw']] = 1
         if (commitCount >= 1):
-            repoCommits['MDLand/{repo}'.format(
+            repoCommits['{workspace}/{repo}'.format(
                 repo=repoSlug)] = commitCount
             print("Total authors: {authors}".format(authors=commitsAuthors))
             print(
-                "Total commits in MDLand/{repo}: {count}".format(repo=repoSlug, count=commitCount))
+                "Total commits in {workspace}/{repo}: {count}".format(repo=repoSlug, count=commitCount))
         totalCommits += commitCount
         # reset counters
         commitCount = 0
