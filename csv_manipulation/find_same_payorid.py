@@ -4,9 +4,6 @@ import pandas as pd
 md_online_df = pd.read_csv('./csv_manipulation/MD-Online.csv')
 change_healthcare_df = pd.read_csv('./csv_manipulation/Change-Healthcare.csv')
 
-# Ensure the column names for PayorID are consistent in both dataframes
-# Assuming the column names after loading are 'Payer Name' and 'PayorID' for both dataframes
-
 # Merging dataframes on PayorID to find common entries
 common_payors = pd.merge(md_online_df, change_healthcare_df, on='PayorID', suffixes=('_MDOnline', '_ChangeHealthcare'))
 
