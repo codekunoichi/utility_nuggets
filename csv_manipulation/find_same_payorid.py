@@ -12,3 +12,12 @@ print(common_payors[['Payer Name_MDOnline', 'PayorID', 'Payer Name_ChangeHealthc
 
 # If you want to save this to a CSV file for easier review:
 common_payors[['Payer Name_MDOnline', 'PayorID', 'Payer Name_ChangeHealthcare']].to_csv('common_payors.csv', index=False)
+
+# Eliminate duplicate triplets
+common_payors_unique = common_payors[['Payer Name_MDOnline', 'PayorID', 'Payer Name_ChangeHealthcare']].drop_duplicates()
+
+# Display the unique common payors
+print(common_payors_unique.head())
+
+# Save the unique common payors to a CSV file
+common_payors_unique.to_csv('common_payors_unique.csv', index=False)
