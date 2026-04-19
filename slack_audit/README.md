@@ -1,8 +1,23 @@
-# Slack Workspace Audit Tool
+# Slack Utility
 
-A lightweight, read-only Python tool for auditing Slack channel sprawl and communication overload. It collects channel metadata and activity signals, then produces a CSV/JSON report and a console summary — without modifying anything in your workspace.
+A collection of lightweight, read-only Python tools for understanding what's happening in your Slack workspace — from channel health to deployment history.
 
-Useful for understanding which channels are active, slow, stale, or unclear in purpose, as evidence for decisions about reducing cognitive load and improving focus.
+---
+
+## Tools in this package
+
+| Script | What it does |
+|--------|-------------|
+| `main.py` | **Workspace Audit** — audits every channel for activity, stale status, and purpose clarity |
+| `digest_main.py` | **Deployment Digest** — generates a weekly Markdown report of what was deployed, when, and any post-deploy impact alerts |
+
+---
+
+## Workspace Audit (`main.py`)
+
+A read-only audit of Slack channel sprawl and communication overload. Collects channel metadata and activity signals, then produces a CSV/JSON report and a console summary.
+
+Useful for understanding which channels are active, slow, stale, or unclear in purpose.
 
 ---
 
@@ -102,7 +117,7 @@ All variables except `SLACK_BOT_TOKEN` have sensible defaults. The tool validate
 
 ---
 
-## Running the Tool
+## Running the Workspace Audit
 
 ```bash
 # With defaults from .env:
@@ -173,6 +188,128 @@ python main.py --verbose
 ### JSON report (`reports/slack_audit_<timestamp>.json`)
 
 Same data as the CSV, wrapped in a top-level object with `generated_at` and `total_channels` fields.
+
+---
+
+---
+
+## Deployment Digest (`digest_main.py`)
+
+Reads two Slack channels — one where your CI/CD bot posts deployment notifications, another where post-deploy alerts land — and produces a weekly Markdown report showing what was deployed when, and which deployments had nearby incident signals.
+
+### What it does
+
+- Fetches all messages from your **deployments channel** for the past N days (default 7)
+- Parses structured bot messages to extract service name, version, environment, and deployer
+- Fetches all messages from your **impact/alerts channel** in the same window
+- Flags any impact message posted within N minutes of a deployment (default 30 min)
+- Writes a Markdown digest grouped by day, with a post-deploy impact analysis section
+
+### Additional Slack Scopes Required
+
+The same bot token used for the workspace audit works here, provided it has been added to both channels. No additional scopes are needed beyond what's already listed above.
+
+If your deployment or impact channels are **private**, invite the bot first:
+```
+/invite @your-bot-name
+```
+
+### Additional Environment Variables
+
+Add these to your `.env` file alongside the existing audit variables:
+
+```
+# Required — the channel where your CI/CD bot posts deploy notifications
+SLACK_DEPLOYMENT_CHANNEL=C0123DEPLOY
+
+# Required — the channel where post-deploy alerts or incident notices land
+SLACK_IMPACT_CHANNEL=C0456IMPACT
+
+# Optional — how many days back to scan (default: 7)
+DIGEST_LOOKBACK_DAYS=7
+
+# Optional — minutes after a deploy to check for impact events (default: 30)
+IMPACT_WINDOW_MINUTES=30
+```
+
+#### How to find your Channel IDs
+
+Channel IDs look like `C0123ABCDEF`. The easiest ways to find one:
+
+1. **In Slack:** Open the channel → click the channel name at the top → scroll to the bottom of the popup — the ID is shown there (e.g. `Channel ID: C0123ABCDEF`).
+2. **Via URL:** In Slack's browser app, the URL contains the channel ID: `https://app.slack.com/client/TXXXXXXX/C0123ABCDEF` — the part starting with `C` is the channel ID.
+3. **Channel name also works:** You can use the channel name (e.g. `deployments`) instead of the ID — the Slack API accepts both.
+
+### Running the Deployment Digest
+
+```bash
+# With defaults from .env (past 7 days, 30-min impact window):
+python digest_main.py
+
+# Look back 14 days instead:
+python digest_main.py --days 14
+
+# Override channels without editing .env:
+python digest_main.py --deployment-channel C0123DEPLOY --impact-channel C0456IMPACT
+
+# Write report to a custom directory:
+python digest_main.py --output-dir /tmp/digests
+
+# Verbose logging to see what the parser is extracting:
+python digest_main.py --verbose
+```
+
+### Deployment Digest Output
+
+#### Console summary
+```
+Deployments: 12 | Services: 5 | With impacts: 2 | Clean: 10
+Digest written to: reports/deployment_digest_20260413_20260419.md
+```
+
+#### Markdown report (`reports/deployment_digest_YYYYMMDD_YYYYMMDD.md`)
+
+```markdown
+# Weekly Deployment Digest
+**Period:** Mon Apr 13 – Sun Apr 19, 2026 | **Generated:** 2026-04-19 18:00 UTC
+
+## Summary
+| Metric | Value |
+|--------|-------|
+| Total deployments | 12 |
+| Unique services | 5 |
+| Deployments with nearby impacts | 2 |
+| Clean deployments | 10 |
+
+## Deployments by Day
+
+### Monday, April 13
+| Time (UTC) | Service | Version | Environment | Deployer |
+|------------|---------|---------|-------------|----------|
+| 10:23 | api-service | v2.1.4 | production | @alice |
+
+## Post-Deployment Impact Analysis
+
+### ⚠️ Deployments with Nearby Incidents (within 30 min)
+**api-service v2.1.4** → production (Mon Apr 13, 10:23 UTC)
+- [10:47] "High error rate on /api/users" _(24 min after deploy)_
+
+### ✅ Clean Deployments
+- auth-service v1.8.0 → staging (Mon Apr 13, 15:45) — no impacts in 30-min window
+```
+
+### Supported Bot Message Formats
+
+The parser recognises common CI/CD bot patterns out of the box:
+
+| CI/CD Tool | Example message |
+|---|---|
+| GitHub Actions | `Deployed api-service v2.1.4 to production by @alice` |
+| ArgoCD | `app: auth-service\nversion: v1.8.0\nenv: staging\nauthor: bob` |
+| Jenkins / generic | `Deploying payment-service to prod` |
+| Any tool | `Released frontend v3.0.0-rc.1 to staging` |
+
+If your bot uses a different format, run with `--verbose` to see what the parser is extracting and what it skips — then open an issue or tweak the regex patterns in `src/slack_audit/deployment_digest/parser.py`.
 
 ---
 
