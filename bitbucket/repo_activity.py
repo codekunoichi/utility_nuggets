@@ -1,5 +1,4 @@
 import os
-import base64
 import argparse
 import csv
 import json
@@ -7,13 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
-
-def make_auth_header():
-    login_string = os.getenv("BITBUCKET_CREDS")
-    if not login_string:
-        raise EnvironmentError("BITBUCKET_CREDS environment variable is not set")
-    encoded = base64.b64encode(login_string.encode("ascii")).decode("ascii")
-    return {"Authorization": f"Basic {encoded}"}
+from bitbucket_creds_checker import make_auth_header
 
 
 def get_repositories(workspace, headers):
