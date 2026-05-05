@@ -1,15 +1,14 @@
 import os
 import requests
 import dateutil.parser
-import base64
 import math
+
+from bitbucket_creds_checker import make_auth_header
 
 
 # Configuration
 year = 2023
-login_string = os.getenv('BITBUCKET_CREDS') 
 workspace = os.getenv('BITBUCKET_WORKSPACE')
-# By a lot of repo's 100 is recommended because of the rate limit of the API
 pagelen = 100
 
 # vars
@@ -21,12 +20,12 @@ print("")
 print("Stats for {year}".format(year=year))
 print("")
 
+headers = make_auth_header()
 
-login_string_bytes = login_string.encode("ascii")
-base64_login_bytes = base64.b64encode(login_string_bytes)
-base64_string = base64_login_bytes.decode("ascii")
-r = requests.get('https://api.bitbucket.org/2.0/repositories/{workspace}/?q=updated_on>="{year}-06-01"&pagelen={pagelen}'.format(
-    year=year, workspace=workspace, pagelen=pagelen), headers={'Authorization': 'Basic {base64_string}'.format(base64_string=base64_string)})
+r = requests.get(
+    'https://api.bitbucket.org/2.0/repositories/{workspace}/?q=updated_on>="{year}-06-01"&pagelen={pagelen}'.format(
+        year=year, workspace=workspace, pagelen=pagelen),
+    headers=headers)
 
 counterPages = 0
 commitsAuthors = {}
@@ -42,10 +41,7 @@ while counterPages < amountOfPages:
             '?pagelen={pagelen}'.format(pagelen=pagelen)
         repoSlug = repo["slug"]
 
-        # print(repoSlug)
-        # continue
-        r = requests.get(commitLink,
-                         headers={'Authorization': 'Basic {base64_string}'.format(base64_string=base64_string)})
+        r = requests.get(commitLink, headers=headers)
         try:
             c = r.json()
         except requests.exceptions.JSONDecodeError:
@@ -53,9 +49,7 @@ while counterPages < amountOfPages:
             continue
         commits.extend(c['values'])
         while 'next' in c:
-            # print("next page")
-            r = requests.get("{next}".format(next=c['next']),
-                             headers={'Authorization': 'Basic {base64_string}'.format(base64_string=base64_string)})
+            r = requests.get("{next}".format(next=c['next']), headers=headers)
             try:
                 c = r.json()
             except requests.exceptions.JSONDecodeError:
@@ -64,7 +58,6 @@ while counterPages < amountOfPages:
             commits.extend(c['values'])
 
         for commit in commits:
-            # print("count commit")
             commitDate = dateutil.parser.parse(commit['date'])
             if commitDate.year == year:
                 commitCount += 1
@@ -84,8 +77,7 @@ while counterPages < amountOfPages:
         commits = []
 
     if "next" in repos and repos['next'] is not None:
-        r = requests.get("{next}".format(next=repos['next']), headers={
-                         'Authorization': 'Basic {base64_string}'.format(base64_string=base64_string)})
+        r = requests.get("{next}".format(next=repos['next']), headers=headers)
         repos = r.json()
 
 
